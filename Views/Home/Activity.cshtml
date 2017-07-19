@@ -1,0 +1,63 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+@using Newtonsoft.Json
+@model IEnumerable<NexosisFitbit.Model.Point>
+
+
+<div class="col-lg-12">
+    <div id="chart" >
+        <svg style="height: 400px;width: 100%"><text x="100" y="100" font-family="sans-serif" font-size="10px" fill="red">If no chart, try refreshing the page</text></svg>
+    </div>
+</div>
+
+
+@section scripts
+{
+    <script>
+        var data = @Html.Raw(JsonConvert.SerializeObject(Model));
+
+        nv.addGraph(function() {
+            var chart = nv.models.lineChart()
+                    .margin({ left: 100 }) //Adjust chart margins to give the x-axis some breathing room.
+                    .useInteractiveGuideline(true) //We want nice looking tooltips and a guideline!
+                    .duration(350) //how fast do you want the lines to transition?
+                    .showLegend(true) //Show the legend, allowing users to turn on/off line series.
+                    .showYAxis(true) //Show the y-axis
+                    .showXAxis(true) //Show the x-axis
+                ;
+
+            chart.xAxis //Chart x-axis settings
+                .axisLabel('Day')
+                .tickFormat(function(d) { return d3.time.format('%b %d %Y')(new Date(d * 1000)); });
+
+            chart.yAxis //Chart y-axis settings
+                .axisLabel('Steps')
+                .tickFormat(d3.format('10.0f'));
+
+            /* Done setting the chart up? Time to render it!*/
+            var chartData = [
+                {
+                    values: data,
+                    key: "Steps",
+                    color: '#ff7f0e'
+                }
+            ];
+
+            var chartSvg = d3.select('#chart svg');
+            chartSvg.selectAll("*").remove(); //remove the text node warning of content problems.
+            d3.select('#chart svg') //Select the <svg> element you want to render the chart in.   
+                .datum(chartData) //Populate the <svg> element with chart data...
+                .call(chart); //Finally, render the chart!
+
+            //Update the chart when window resizes.
+            nv.utils.windowResize(function() { chart.update() });
+            return chart;
+        });
+        
+        
+    </script>
+    
+    
+}
+
