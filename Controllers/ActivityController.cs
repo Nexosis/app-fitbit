@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Nexosis.Api.Client.Model;
 using NexosisFitbit.Model;
+using NexosisFitbit.ViewModels;
 
 namespace NexosisFitbit.Controllers
 {
@@ -34,7 +35,7 @@ namespace NexosisFitbit.Controllers
             var stepsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Steps, DateTime.Today, DateRangePeriod.Max, "-");
             var distanceSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Distance, DateTime.Today, DateRangePeriod.Max, "-");
             var floorsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Floors, DateTime.Today, DateRangePeriod.Max, "-");
-            var activityCaloriesSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.ActivityCalories, DateTime.Today, DateRangePeriod.Max, "-");
+            //var activityCaloriesSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.ActivityCalories, DateTime.Today, DateRangePeriod.Max, "-");
             var caloriesInSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.CaloriesIn, DateTime.Today, DateRangePeriod.Max, "-");
             var caloriesOutSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.CaloriesOut, DateTime.Today, DateRangePeriod.Max, "-");
             var sleepSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.MinutesAsleep, DateTime.Today, DateRangePeriod.Max, "-");
@@ -47,8 +48,7 @@ namespace NexosisFitbit.Controllers
             var dataSetData = from steps in stepsSeries.DataList
                 join distance in distanceSeries.DataList on steps.DateTime equals distance.DateTime
                 join floors in floorsSeries.DataList on steps.DateTime equals floors.DateTime
-                join activityCalories in activityCaloriesSeries.DataList on steps.DateTime equals activityCalories
-                    .DateTime
+                //join activityCalories in activityCaloriesSeries.DataList on steps.DateTime equals activityCalories.DateTime
                 join caloriesIn in caloriesInSeries.DataList on steps.DateTime equals caloriesIn.DateTime
                 join caloriesOut in caloriesOutSeries.DataList on steps.DateTime equals caloriesOut.DateTime
                 join sleep in sleepSeries.DataList on steps.DateTime equals sleep.DateTime
@@ -62,7 +62,7 @@ namespace NexosisFitbit.Controllers
                     ["timeStamp"] = steps.DateTime.ToString("o"),
                     [nameof(steps)] = steps.Value,
                     [nameof(floors)] = floors.Value,
-                    [nameof(activityCalories)] = activityCalories.Value,
+                    //[nameof(activityCalories)] = activityCalories.Value,
                     [nameof(caloriesIn)] = caloriesIn.Value,
                     [nameof(caloriesOut)] = caloriesOut.Value,
                     [nameof(sleep)] = sleep.Value,
@@ -78,13 +78,26 @@ namespace NexosisFitbit.Controllers
 
             var request = new DataSetDetail() {Data = dataSetData.ToList()};
 
-            var dataSetName = $"fitbit/{fitbitUser.UserId}"; 
+            var dataSetName = $"fitbit.{fitbitUser.UserId}"; 
             await nexosisClient.DataSets.Create(dataSetName, request);
 
-            await nexosisClient.Sessions.CreateForecast(new SessionDetail() {DataSetName = dataSetName},
+            var columns = request.Data.SelectMany(r => r.Keys).Distinct().Except(new[] {"timeStamp", "steps"}).Select(
+                    c => new KeyValuePair<string, ColumnMetadata>(c,
+                        new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.None}))
+                .ToDictionary(k => k.Key, v => v.Value);
+            
+            columns.Add("steps", new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.Target});
+
+            var sessionRequest = new SessionDetail()
+            {
+                DataSetName = dataSetName,
+                Columns =  columns
+            };
+
+            await nexosisClient.Sessions.CreateForecast(sessionRequest,
                 new DateTimeOffset(DateTime.Today), new DateTimeOffset(DateTime.Today.AddDays(30)), ResultInterval.Day);
                     
-            return View("Index");
+            return RedirectToAction("Index");
 
         }
 
@@ -98,12 +111,26 @@ namespace NexosisFitbit.Controllers
                 var client = await fitbit.Connect(User);
 
                 timeSeries = await client.GetTimeSeriesIntAsync(TimeSeriesResourceType.Steps, DateTime.Today,
-                    DateRangePeriod.ThreeMonths, "-");
+                    DateRangePeriod.SixMonths, "-");
 
                 cache.Set($"{User.Identity.Name}.Activities", timeSeries);
             }
 
-            return View(timeSeries.ToPoints());
+            var fitbitUser = await fitbit.GetFitbitUser(User);
+
+            var nexosisClient = nexosis.Connect();
+
+            var lastSession = (await nexosisClient.Sessions.List($"fitbit.{fitbitUser.UserId}")).OrderByDescending(o=>o.RequestedDate).FirstOrDefault();
+
+
+            SessionResult result = null;
+
+            if (lastSession.Status == Status.Completed)
+            {
+                result = await nexosisClient.Sessions.GetResults(lastSession.SessionId);
+            }
+            
+            return View(new ActivityViewModel(timeSeries.ToPoints(), lastSession, result.ToPoints()));
         }
     }
 }
