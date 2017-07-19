@@ -13,3 +13,6 @@ artifacts:
  - path: '\bin\Release\netcoreapp1.1\publish'
    name: NexosisFitbit
    type: WebDeployPackage
+deploy:
+- provider: Environment
+  name: Nexosis Fitbit Dev
