@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using Auth0.Core;
 using Fitbit.Api.Portable;
 using Fitbit.Api.Portable.OAuth2;
 using Microsoft.CodeAnalysis.CSharp;
@@ -41,20 +42,24 @@ namespace NexosisFitbit.Model
                 return false;
             }
         }
-        
-        
-        public async Task<IFitbitClient> Connect(ClaimsPrincipal user)
+
+        public async Task<Identity> GetFitbitUser(ClaimsPrincipal user)
         {
+            var ac2 = await GetAccessToken();
+            var managementApi = new Auth0.ManagementApi.ManagementApiClient(ac2.access_token, auth0Config.Value.Domain);
+            
             var nameClaim = user.Claims.FirstOrDefault(i =>
                 i.Type.Equals(@"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"));
 
-            var ac2 = await GetAccessToken();
-            var managementApi =
-                new Auth0.ManagementApi.ManagementApiClient(ac2.access_token, auth0Config.Value.Domain);
-
             var fitbitUser = await managementApi.Users.GetAsync(nameClaim.Value);
             var fitbitId = fitbitUser.Identities[0];
-
+            return fitbitId;
+        }
+        
+        public async Task<IFitbitClient> Connect(ClaimsPrincipal user)
+        {
+            
+            var fitbitId = await GetFitbitUser(user);
 
             var client = new FitbitClient(
                     new FitbitAppCredentials
