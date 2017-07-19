@@ -6,3 +6,5 @@ build:
   project: NexosisFitbit.sln
   publish_wap: true
   verbosity: minimal
+hosts:
+  api.nuget.org: 93.184.221.200
