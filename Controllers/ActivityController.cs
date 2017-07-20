@@ -122,10 +122,9 @@ namespace NexosisFitbit.Controllers
 
             var lastSession = (await nexosisClient.Sessions.List($"fitbit.{fitbitUser.UserId}")).OrderByDescending(o=>o.RequestedDate).FirstOrDefault();
 
-
             SessionResult result = null;
 
-            if (lastSession.Status == Status.Completed)
+            if (lastSession?.Status == Status.Completed)
             {
                 result = await nexosisClient.Sessions.GetResults(lastSession.SessionId);
             }
