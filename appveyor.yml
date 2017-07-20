@@ -1,7 +1,10 @@
 version: 1.0.{build}
 image: Visual Studio 2017
 before_build:
-- cmd: npm install -g bower
+- cmd: >- 
+	npm install -g bower
+
+	bower install
 build_script:
 - cmd: >-
     dotnet restore
@@ -10,7 +13,7 @@ build_script:
 hosts:
   api.nuget.org: 93.184.221.200
 artifacts:
- - path: '/bin/Release/netcoreapp1.1/publish/**/*.*'
+ - path: '/bin/Release/netcoreapp1.1/publish'
    name: NexosisFitbit
    type: WebDeployPackage
 deploy:
