@@ -51,10 +51,10 @@ namespace NexosisFitbit.Controllers
                 //join activityCalories in activityCaloriesSeries.DataList on steps.DateTime equals activityCalories.DateTime
                 join caloriesIn in caloriesInSeries.DataList on steps.DateTime equals caloriesIn.DateTime
                 join caloriesOut in caloriesOutSeries.DataList on steps.DateTime equals caloriesOut.DateTime
-                join sleep in sleepSeries.DataList on steps.DateTime equals sleep.DateTime
-                join fairlyActive in fairlyActiveSeries.DataList on steps.DateTime equals fairlyActive.DateTime
-                join lightlyActive in lightlyActiveSeries.DataList on steps.DateTime equals lightlyActive.DateTime
-                join veryActive in veryActiveSeries.DataList on steps.DateTime equals veryActive.DateTime
+                join minutesAsleep in sleepSeries.DataList on steps.DateTime equals minutesAsleep.DateTime
+                join minutesFairlyActive in fairlyActiveSeries.DataList on steps.DateTime equals minutesFairlyActive.DateTime
+                join minutesLightlyActive in lightlyActiveSeries.DataList on steps.DateTime equals minutesLightlyActive.DateTime
+                join minutesVeryActive in veryActiveSeries.DataList on steps.DateTime equals minutesVeryActive.DateTime
                 join water in waterSeries.DataList on steps.DateTime equals water.DateTime
                 join weight in weightSeries.DataList on steps.DateTime equals weight.DateTime
                 select new Dictionary<string, string>
@@ -65,10 +65,10 @@ namespace NexosisFitbit.Controllers
                     //[nameof(activityCalories)] = activityCalories.Value,
                     [nameof(caloriesIn)] = caloriesIn.Value,
                     [nameof(caloriesOut)] = caloriesOut.Value,
-                    [nameof(sleep)] = sleep.Value,
-                    [nameof(fairlyActive)] = fairlyActive.Value,
-                    [nameof(lightlyActive)] = lightlyActive.Value,
-                    [nameof(veryActive)] = veryActive.Value,
+                    [nameof(minutesAsleep)] = minutesAsleep.Value,
+                    [nameof(minutesFairlyActive)] = minutesFairlyActive.Value,
+                    [nameof(minutesLightlyActive)] = minutesLightlyActive.Value,
+                    [nameof(minutesVeryActive)] = minutesVeryActive.Value,
                     [nameof(water)] = water.Value,
                     [nameof(weight)] = weight.Value,
                 };
@@ -102,25 +102,38 @@ namespace NexosisFitbit.Controllers
         }
 
         [Authorize]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string id)
         {
-            TimeSeriesDataListInt timeSeries = null;
 
-            if (!cache.TryGetValue($"{User.Identity.Name}.Activities", out timeSeries))
+            if (id == null)
+            {
+                return RedirectToAction("Index", new {id = "steps"});
+            }
+            
+            TimeSeriesDataList timeSeries = null;
+
+            if (!cache.TryGetValue($"{User.Identity.Name}.{id}", out timeSeries))
             {
                 var client = await fitbit.Connect(User);
 
-                timeSeries = await client.GetTimeSeriesIntAsync(TimeSeriesResourceType.Steps, DateTime.Today,
+                var resourceType = TimeSeriesResourceType.Steps;
+                if (!Enum.TryParse(id, true, out resourceType))
+                {
+                    return RedirectToAction("Index", new {id = "steps"});                    
+                }
+
+                timeSeries = await client.GetTimeSeriesAsync(resourceType, DateTime.Today,
                     DateRangePeriod.SixMonths, "-");
 
-                cache.Set($"{User.Identity.Name}.Activities", timeSeries);
+                cache.Set($"{User.Identity.Name}.{id}", timeSeries);
             }
 
             var fitbitUser = await fitbit.GetFitbitUser(User);
 
             var nexosisClient = nexosis.Connect();
 
-            var lastSession = (await nexosisClient.Sessions.List($"fitbit.{fitbitUser.UserId}")).OrderByDescending(o=>o.RequestedDate).FirstOrDefault();
+            var lastSession = (await nexosisClient.Sessions.List($"fitbit.{fitbitUser.UserId}"))
+                .OrderByDescending(o=>o.RequestedDate).FirstOrDefault(s => s.TargetColumn == id);
 
             SessionResult result = null;
 

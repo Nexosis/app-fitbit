@@ -19,5 +19,9 @@ namespace NexosisFitbit.ViewModels
         public List<Point> Prediction { get; set; }
 
         public SessionResponse LastSession { get; set; }
+
+        public string SelectedMetric { get; set; }
+
+        public List<Metric> Metrics { get; set; } = Metric.All.ToList();
     }
 }

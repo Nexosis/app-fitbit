@@ -3,6 +3,6 @@
     public class Point
     {
         public long x { get; set; }
-        public long y { get; set; }
+        public double y { get; set; }
     }
 }

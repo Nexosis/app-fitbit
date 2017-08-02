@@ -14,6 +14,18 @@ namespace NexosisFitbit.Model
             return timeSeries.DataList.Select(d => new Point() {x = d.DateTime.ToUnixTime(), y = d.Value});
         }
 
+        public static IEnumerable<Point> ToPoints(this TimeSeriesDataList timeSeries)
+        {
+            return timeSeries.DataList.Select(DataToPoint);
+        }
+
+        private static Point DataToPoint(TimeSeriesDataList.Data data)
+        {
+            double value = 0;
+            double.TryParse(data.Value, out value);
+            return new Point() {x = data.DateTime.ToUnixTime(), y = value};
+        }
+
         public static IEnumerable<Point> ToPoints(this SessionResult result)
         {
             if (result == null)
