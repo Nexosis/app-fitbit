@@ -142,7 +142,7 @@ namespace NexosisFitbit.Controllers
                 result = await nexosisClient.Sessions.GetResults(lastSession.SessionId);
             }
             
-            return View(new ActivityViewModel(timeSeries.ToPoints(), lastSession, result.ToPoints()));
+            return View(new ActivityViewModel(timeSeries.ToPoints(), lastSession, result.ToPoints(), id));
         }
     }
 }

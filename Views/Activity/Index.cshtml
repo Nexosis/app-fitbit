@@ -69,19 +69,19 @@
                 .tickFormat(function(d) { return d3.time.format('%b %d %Y')(new Date(d * 1000)); });
 
             chart.yAxis //Chart y-axis settings
-                .axisLabel('@Model.SelectedMetric')
+                .axisLabel('@Model.SelectedMetric.DisplayName')
                 .tickFormat(d3.format('10.0f'));
 
             /* Done setting the chart up? Time to render it!*/
             var chartData = [
                 {
                     values: data,
-                    key: "@Model.SelectedMetric",
+                    key: "@Model.SelectedMetric.DisplayName",
                     color: '#ff7f0e'
                 },
                 {
                     values: prediction,
-                    key: "Predicted @Model.SelectedMetric",
+                    key: "Predicted @Model.SelectedMetric.DisplayName",
                     color: '#2ca02c'
                 }
             ];
