@@ -128,6 +128,7 @@ namespace NexosisFitbit.Controllers
 
             var nexosisClient = nexosis.Connect();
 
+            //look for the most recent session targeting the current activity
             var lastSession = (await nexosisClient.Sessions.List($"fitbit.{fitbitUser.UserId}"))
                 .OrderByDescending(o=>o.RequestedDate).FirstOrDefault(s => s.TargetColumn == id);
 
@@ -135,6 +136,7 @@ namespace NexosisFitbit.Controllers
 
             if (lastSession?.Status == Status.Completed)
             {
+                //if we have a session, fetch that session's results
                 result = await nexosisClient.Sessions.GetResults(lastSession.SessionId);
             }
 
