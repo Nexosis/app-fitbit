@@ -80,7 +80,7 @@ namespace NexosisFitbit.Controllers
             var dataSetName = $"fitbit.{fitbitUser.UserId}"; 
             await nexosisClient.DataSets.Create(dataSetName, request);
 
-            
+            //make sure that we've identified which column in the DataSet is our target (the one we want to predict)
             var sessionRequest = new SessionDetail()
             {
                 DataSetName = dataSetName,
