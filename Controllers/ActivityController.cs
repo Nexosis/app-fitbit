@@ -28,14 +28,13 @@ namespace NexosisFitbit.Controllers
         
         [Authorize]
         [HttpPost]
-        public async Task <IActionResult> Predict()
+        public async Task <IActionResult> Predict(string id)
         {
             var client = await fitbit.Connect(User);
 
             var stepsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Steps, DateTime.Today, DateRangePeriod.Max, "-");
             var distanceSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Distance, DateTime.Today, DateRangePeriod.Max, "-");
             var floorsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Floors, DateTime.Today, DateRangePeriod.Max, "-");
-            //var activityCaloriesSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.ActivityCalories, DateTime.Today, DateRangePeriod.Max, "-");
             var caloriesInSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.CaloriesIn, DateTime.Today, DateRangePeriod.Max, "-");
             var caloriesOutSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.CaloriesOut, DateTime.Today, DateRangePeriod.Max, "-");
             var sleepSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.MinutesAsleep, DateTime.Today, DateRangePeriod.Max, "-");
@@ -48,7 +47,6 @@ namespace NexosisFitbit.Controllers
             var dataSetData = from steps in stepsSeries.DataList
                 join distance in distanceSeries.DataList on steps.DateTime equals distance.DateTime
                 join floors in floorsSeries.DataList on steps.DateTime equals floors.DateTime
-                //join activityCalories in activityCaloriesSeries.DataList on steps.DateTime equals activityCalories.DateTime
                 join caloriesIn in caloriesInSeries.DataList on steps.DateTime equals caloriesIn.DateTime
                 join caloriesOut in caloriesOutSeries.DataList on steps.DateTime equals caloriesOut.DateTime
                 join minutesAsleep in sleepSeries.DataList on steps.DateTime equals minutesAsleep.DateTime
@@ -62,7 +60,6 @@ namespace NexosisFitbit.Controllers
                     ["timeStamp"] = steps.DateTime.ToString("o"),
                     [nameof(steps)] = steps.Value,
                     [nameof(floors)] = floors.Value,
-                    //[nameof(activityCalories)] = activityCalories.Value,
                     [nameof(caloriesIn)] = caloriesIn.Value,
                     [nameof(caloriesOut)] = caloriesOut.Value,
                     [nameof(minutesAsleep)] = minutesAsleep.Value,
@@ -81,12 +78,12 @@ namespace NexosisFitbit.Controllers
             var dataSetName = $"fitbit.{fitbitUser.UserId}"; 
             await nexosisClient.DataSets.Create(dataSetName, request);
 
-            var columns = request.Data.SelectMany(r => r.Keys).Distinct().Except(new[] {"timeStamp", "steps"}).Select(
+            var columns = request.Data.SelectMany(r => r.Keys).Distinct().Except(new[] {"timeStamp", id}).Select(
                     c => new KeyValuePair<string, ColumnMetadata>(c,
                         new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.None}))
                 .ToDictionary(k => k.Key, v => v.Value);
             
-            columns.Add("steps", new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.Target});
+            columns.Add(id, new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.Target});
 
             var sessionRequest = new SessionDetail()
             {
@@ -97,7 +94,7 @@ namespace NexosisFitbit.Controllers
             await nexosisClient.Sessions.CreateForecast(sessionRequest,
                 new DateTimeOffset(DateTime.Today), new DateTimeOffset(DateTime.Today.AddDays(30)), ResultInterval.Day);
                     
-            return RedirectToAction("Index");
+            return RedirectToAction("Index", new{id=id});
 
         }
 
@@ -141,8 +138,15 @@ namespace NexosisFitbit.Controllers
             {
                 result = await nexosisClient.Sessions.GetResults(lastSession.SessionId);
             }
+
+            var actualPoints = timeSeries.ToPoints().ToList();
+            var predictedPoints = result.ToPoints().ToList();
+
+            //make sure the two series have the same number of points, just to satisfy nvd3
+            predictedPoints = predictedPoints.AlignWith(actualPoints).ToList();
+            actualPoints = actualPoints.AlignWith(predictedPoints).ToList();
             
-            return View(new ActivityViewModel(timeSeries.ToPoints(), lastSession, result.ToPoints(), id));
+            return View(new ActivityViewModel(actualPoints, lastSession, predictedPoints, id));
         }
     }
 }

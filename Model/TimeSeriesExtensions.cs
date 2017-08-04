@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Fitbit.Models;
+using Microsoft.AspNetCore.Mvc.TagHelpers;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Nexosis.Api.Client.Model;
 
@@ -38,10 +39,32 @@ namespace NexosisFitbit.Model
                 return new Point()
                 {
                     x = DateTime.Parse(r["timeStamp"]).ToUnixTime(),
-                    y = (int)double.Parse(r["steps"])
+                    y = (int)double.Parse(r[result.TargetColumn])
                 };
             });
 
+        }
+
+        public static IEnumerable<Point> AlignWith(this List<Point> left, List<Point> right)
+        {
+            var leftLookup = left.ToLookup(k => k.x, k => k);
+            var superset = left.Union(right).OrderBy(p=>p.x);
+            foreach (var point in superset)
+            {
+                if (leftLookup.Contains(point.x))
+                {
+                    foreach (var existing in leftLookup[point.x])
+                    {
+                        yield return existing;
+                    }
+                }
+                else
+                {
+                    yield return new Point() {x = point.x};
+                }
+            }
+            
+            
         }
 
         public static long ToUnixTime(this DateTime date)
