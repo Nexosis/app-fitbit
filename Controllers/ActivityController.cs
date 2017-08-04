@@ -32,6 +32,7 @@ namespace NexosisFitbit.Controllers
         {
             var client = await fitbit.Connect(User);
 
+            //fetch all of the activities that we care about 
             var stepsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Steps, DateTime.Today, DateRangePeriod.Max, "-");
             var distanceSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Distance, DateTime.Today, DateRangePeriod.Max, "-");
             var floorsSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Floors, DateTime.Today, DateRangePeriod.Max, "-");
@@ -44,6 +45,7 @@ namespace NexosisFitbit.Controllers
             var waterSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Water, DateTime.Today, DateRangePeriod.Max, "-");
             var weightSeries = await client.GetTimeSeriesAsync(TimeSeriesResourceType.Weight, DateTime.Today, DateRangePeriod.Max, "-");
 
+            //join them all into a single dictionary by date
             var dataSetData = from steps in stepsSeries.DataList
                 join distance in distanceSeries.DataList on steps.DateTime equals distance.DateTime
                 join floors in floorsSeries.DataList on steps.DateTime equals floors.DateTime
@@ -73,26 +75,23 @@ namespace NexosisFitbit.Controllers
             var nexosisClient = nexosis.Connect();
             var fitbitUser = await fitbit.GetFitbitUser(User);
 
+            //send that dictionary to Nexosis as a single DataSet
             var request = new DataSetDetail() {Data = dataSetData.ToList()};
-
             var dataSetName = $"fitbit.{fitbitUser.UserId}"; 
             await nexosisClient.DataSets.Create(dataSetName, request);
 
-            var columns = request.Data.SelectMany(r => r.Keys).Distinct().Except(new[] {"timeStamp", id}).Select(
-                    c => new KeyValuePair<string, ColumnMetadata>(c,
-                        new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.None}))
-                .ToDictionary(k => k.Key, v => v.Value);
             
-            columns.Add(id, new ColumnMetadata() {DataType = ColumnType.Numeric, Role = ColumnRole.Target});
-
             var sessionRequest = new SessionDetail()
             {
                 DataSetName = dataSetName,
-                Columns =  columns
+                Columns = new Dictionary<string, ColumnMetadata>()
+                {
+                    [id] = new ColumnMetadata() {Role = ColumnRole.Target, DataType = ColumnType.Numeric}
+                }
             };
 
             await nexosisClient.Sessions.CreateForecast(sessionRequest,
-                new DateTimeOffset(DateTime.Today), new DateTimeOffset(DateTime.Today.AddDays(30)), ResultInterval.Day);
+                new DateTimeOffset(DateTime.Today.AddDays(1)), new DateTimeOffset(DateTime.Today.AddDays(31)), ResultInterval.Day);
                     
             return RedirectToAction("Index", new{id=id});
 
