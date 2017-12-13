@@ -31,7 +31,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="1.1.2" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
-    <PackageReference Include="Nexosis.Api.Client" Version="1.1.1" />
+    <PackageReference Include="Nexosis.Api.Client" Version="2.0.0.103" />
     <PackageReference Include="System.Net.Http" Version="4.3.2" />
     <PackageReference Include="System.Reflection" Version="4.3.0" />
   </ItemGroup>
